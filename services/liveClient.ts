@@ -372,13 +372,22 @@ export class LiveClient {
     }
   }
 
-  private handleClose() {
+  private handleClose(e: CloseEvent) {
+    console.log("Session Closed:", e);
     this.onStateChange({ isConnected: false });
     this.cleanup();
   }
 
-  private handleError(e: ErrorEvent) {
-     const errorMsg = (e as any).message || (e as any).error?.message || "Connection error occurred.";
+  private handleError(e: ErrorEvent | any) {
+    let errorMsg = "Connection error occurred.";
+    if (e instanceof ErrorEvent) {
+        errorMsg = e.message;
+    } else if (e.message) {
+        errorMsg = e.message;
+    } else if (e.type === 'error') {
+        errorMsg = "WebSocket Connection Error";
+    }
+    
     this.onStateChange({ error: errorMsg });
     console.error("Gemini Live Error:", e);
   }

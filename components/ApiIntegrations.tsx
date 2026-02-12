@@ -95,25 +95,28 @@ const ApiIntegrations: React.FC<ApiIntegrationsProps> = ({ isOpen, onClose }) =>
   }, []);
 
   const handleSave = (id: string) => {
-    const updated = integrations.map(item => {
-        if (item.id === id) {
-            // Simple validation: if fields have values, mark as connected
-            const hasValues = item.fields.every(f => f.value.trim().length > 0);
-            return { ...item, isConnected: hasValues };
-        }
-        return item;
+    setIntegrations(prev => {
+        const updated = prev.map(item => {
+            if (item.id === id) {
+                const hasValues = item.fields.every(f => f.value.trim().length > 0);
+                return { ...item, isConnected: hasValues };
+            }
+            return item;
+        });
+        
+        localStorage.setItem('jarvis_integrations', JSON.stringify(updated.map(i => ({
+            id: i.id,
+            fields: i.fields,
+            isConnected: i.isConnected
+        }))));
+        
+        return updated;
     });
-    setIntegrations(updated);
-    localStorage.setItem('jarvis_integrations', JSON.stringify(updated.map(i => ({
-        id: i.id,
-        fields: i.fields,
-        isConnected: i.fields.every(f => f.value.trim().length > 0)
-    }))));
     setActiveId(null);
   };
 
   const handleChange = (id: string, fieldName: string, val: string) => {
-    setIntegrations(integrations.map(item => {
+    setIntegrations(prev => prev.map(item => {
         if (item.id === id) {
             return {
                 ...item,
@@ -125,18 +128,24 @@ const ApiIntegrations: React.FC<ApiIntegrationsProps> = ({ isOpen, onClose }) =>
   };
 
   const handleDisconnect = (id: string) => {
-      const updated = integrations.map(item => {
-          if (item.id === id) {
-              return {
-                  ...item,
-                  isConnected: false,
-                  fields: item.fields.map(f => ({ ...f, value: '' }))
-              };
-          }
-          return item;
+      setIntegrations(prev => {
+          const updated = prev.map(item => {
+              if (item.id === id) {
+                  return {
+                      ...item,
+                      isConnected: false,
+                      fields: item.fields.map(f => ({ ...f, value: '' }))
+                  };
+              }
+              return item;
+          });
+          localStorage.setItem('jarvis_integrations', JSON.stringify(updated.map(i => ({
+              id: i.id,
+              fields: i.fields,
+              isConnected: i.isConnected
+          }))));
+          return updated;
       });
-      setIntegrations(updated);
-      localStorage.setItem('jarvis_integrations', JSON.stringify(updated));
   };
 
   if (!isOpen) return null;
