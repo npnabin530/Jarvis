@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Power, Activity, Lock, Unlock, HardDrive, Wifi, MessageSquare, Monitor, Cpu, Smartphone, Zap } from 'lucide-react';
+import { Power, Activity, Lock, Unlock, HardDrive, Wifi, MessageSquare, Monitor, Cpu, Smartphone, Zap, Shield } from 'lucide-react';
 import { LiveClient } from './services/liveClient';
 import { TranscriptionItem, LiveSessionState } from './types';
 import ArcReactor from './components/ArcReactor';
 import TerminalOutput from './components/TerminalOutput';
+import SystemDiagnostics from './components/SystemDiagnostics';
+import ApiIntegrations from './components/ApiIntegrations';
 
 const API_KEY = process.env.API_KEY || '';
 
@@ -17,6 +19,8 @@ const App: React.FC = () => {
     error: null
   });
 
+  const [isDiagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [isApiOpen, setApiOpen] = useState(false);
   const liveClientRef = useRef<LiveClient | null>(null);
 
   useEffect(() => {
@@ -55,6 +59,9 @@ const App: React.FC = () => {
         <div className="absolute inset-0 bg-[linear-gradient(rgba(0,20,30,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(0,20,30,0.3)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#000000_90%)] pointer-events-none"></div>
 
+        <SystemDiagnostics isOpen={isDiagnosticsOpen} onClose={() => setDiagnosticsOpen(false)} />
+        <ApiIntegrations isOpen={isApiOpen} onClose={() => setApiOpen(false)} />
+
         {/* Header */}
         <header className="relative z-10 flex flex-col md:flex-row justify-between items-center p-6 border-b border-cyan-900/30 bg-black/50 backdrop-blur-md">
             <div className="flex items-center gap-3 mb-4 md:mb-0">
@@ -69,30 +76,38 @@ const App: React.FC = () => {
             
             {/* Active Modules Indicator */}
             <div className="flex gap-4 text-xs font-mono flex-wrap justify-center">
-                <div className="flex items-center gap-1 text-cyan-700 opacity-80" title="Memory Core">
+                <button onClick={() => setDiagnosticsOpen(true)} className="flex items-center gap-1 text-cyan-700 opacity-80 hover:text-cyan-400 hover:opacity-100 transition-all cursor-pointer" title="Memory Core">
                     <HardDrive size={14} /> <span>MEM</span>
-                </div>
-                <div className="flex items-center gap-1 text-cyan-700 opacity-80" title="Network">
+                </button>
+                <button onClick={() => setDiagnosticsOpen(true)} className="flex items-center gap-1 text-cyan-700 opacity-80 hover:text-cyan-400 hover:opacity-100 transition-all cursor-pointer" title="Network">
                     <Wifi size={14} /> <span>NET</span>
-                </div>
-                 <div className="flex items-center gap-1 text-cyan-700 opacity-80" title="Messaging">
+                </button>
+                 <button onClick={() => setDiagnosticsOpen(true)} className="flex items-center gap-1 text-cyan-700 opacity-80 hover:text-cyan-400 hover:opacity-100 transition-all cursor-pointer" title="Messaging">
                     <MessageSquare size={14} /> <span>MSG</span>
-                </div>
-                 <div className="flex items-center gap-1 text-cyan-700 opacity-80" title="System">
+                </button>
+                 <button onClick={() => setDiagnosticsOpen(true)} className="flex items-center gap-1 text-cyan-700 opacity-80 hover:text-cyan-400 hover:opacity-100 transition-all cursor-pointer" title="System">
                     <Monitor size={14} /> <span>SYS</span>
-                </div>
-                <div className="flex items-center gap-1 text-cyan-700 opacity-80" title="Mobile Devices">
+                </button>
+                <button onClick={() => setDiagnosticsOpen(true)} className="flex items-center gap-1 text-cyan-700 opacity-80 hover:text-cyan-400 hover:opacity-100 transition-all cursor-pointer" title="Mobile Devices">
                     <Smartphone size={14} /> <span>DEV</span>
-                </div>
-                <div className="flex items-center gap-1 text-cyan-700 opacity-80" title="Plugins/API">
+                </button>
+                <button onClick={() => setApiOpen(true)} className="flex items-center gap-1 text-cyan-700 opacity-80 hover:text-cyan-400 hover:opacity-100 transition-all cursor-pointer" title="Plugins/API">
                     <Zap size={14} /> <span>API</span>
-                </div>
-                 <div className="flex items-center gap-1 text-cyan-700 opacity-80" title="Processing">
+                </button>
+                 <button onClick={() => setDiagnosticsOpen(true)} className="flex items-center gap-1 text-cyan-700 opacity-80 hover:text-cyan-400 hover:opacity-100 transition-all cursor-pointer" title="Processing">
                     <Cpu size={14} /> <span>CPU</span>
-                </div>
+                </button>
             </div>
 
             <div className="flex items-center gap-4 text-xs font-mono text-cyan-700 mt-4 md:mt-0">
+                 <button 
+                    onClick={() => setDiagnosticsOpen(true)}
+                    className="flex items-center gap-2 text-cyan-500 hover:text-cyan-300 transition-colors border border-cyan-500/30 px-3 py-1 rounded bg-cyan-900/10"
+                >
+                    <Shield size={14} />
+                    <span>DIAGNOSTICS</span>
+                </button>
+                
                 <div className="flex items-center gap-2 text-yellow-500 animate-pulse">
                     <Unlock size={14} />
                     <span className="tracking-widest">AUTHORIZED</span>

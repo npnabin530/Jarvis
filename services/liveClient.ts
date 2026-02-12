@@ -109,15 +109,15 @@ const tools: FunctionDeclaration[] = [
   },
   {
     name: 'call_external_api',
-    description: 'Calls an external API or Plugin.',
+    description: 'Calls an external API or Plugin. Supported services: "weather", "spotify", "webhook", "system_monitor", "stock_tracker".',
     parameters: {
       type: Type.OBJECT,
       properties: {
-        service: { type: Type.STRING, description: 'Service name (e.g., "Spotify", "Weather", "SmartHome").' },
+        service: { type: Type.STRING, description: 'Service name (e.g., "weather", "spotify", "webhook", "stock_tracker").' },
         endpoint: { type: Type.STRING, description: 'API endpoint or function name.' },
-        payload: { type: Type.STRING, description: 'JSON string of data to send.' }
+        payload: { type: Type.STRING, description: 'JSON string of data to send (e.g. {"symbol": "TSLA"}).' }
       },
-      required: ['service', 'endpoint']
+      required: ['service']
     }
   }
 ];
@@ -165,8 +165,8 @@ export class LiveClient {
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Fenrir' } } },
           systemInstruction: SYSTEM_INSTRUCTION,
           tools: [{ functionDeclarations: tools }],
-          inputAudioTranscription: { model: "gemini-2.5-flash-native-audio-preview-12-2025" },
-          outputAudioTranscription: { model: "gemini-2.5-flash-native-audio-preview-12-2025" }
+          inputAudioTranscription: { },
+          outputAudioTranscription: { }
         },
       };
 
@@ -259,7 +259,71 @@ export class LiveClient {
           result = { status: `Mobile device action '${args.action}' on '${args.target}' completed.` };
         }
         else if (fc.name === 'call_external_api') {
-          result = { status: `API request to ${args.service} sent.` };
+          try {
+            const integrations = JSON.parse(localStorage.getItem('jarvis_integrations') || '[]');
+            const serviceConfig = integrations.find((i: any) => i.id === args.service);
+            
+            if (!serviceConfig || !serviceConfig.isConnected) {
+              result = { error: `Service '${args.service}' is not configured or is offline in API Matrix.` };
+            } else {
+              // Service Simulation / Execution Logic
+              if (args.service === 'weather') {
+                 // Simulate Weather Data
+                 result = { 
+                   location: 'New York (Simulated)', 
+                   temperature: '22°C', 
+                   condition: 'Clear Sky', 
+                   humidity: '45%' 
+                 };
+              } else if (args.service === 'webhook') {
+                 // Execute Webhook
+                 const url = serviceConfig.fields.find((f:any) => f.name === 'endpoint')?.value;
+                 if (url) {
+                   // Note: Real fetch might fail due to CORS in browser environment, catching error handles it.
+                   fetch(url, { method: 'POST', body: args.payload }).catch(console.error);
+                   result = { status: `Webhook payload sent to ${url}` };
+                 } else {
+                   result = { error: "Webhook URL missing." };
+                 }
+              } else if (args.service === 'system_monitor') {
+                 const host = serviceConfig.fields.find((f:any) => f.name === 'host')?.value;
+                 result = { status: 'ONLINE', latency: '12ms', host: host || 'localhost' };
+              } else if (args.service === 'stock_tracker') {
+                 const configSymbol = serviceConfig.fields.find((f:any) => f.name === 'symbol')?.value || 'GOOGL';
+                 
+                 // Use parsed payload symbol if available (for voice override), else use default config
+                 let targetSymbol = configSymbol;
+                 try {
+                    if (args.payload) {
+                        const p = JSON.parse(args.payload);
+                        // Only override if symbol is present and is a valid string
+                        if (p.symbol && typeof p.symbol === 'string' && p.symbol.trim() !== '') {
+                            targetSymbol = p.symbol;
+                        }
+                    }
+                 } catch(e) {
+                     console.warn("Failed to parse stock payload, using default.", e);
+                 }
+
+                 // Simulate realistic-looking data
+                 const price = (100 + Math.random() * 900).toFixed(2);
+                 const change = (Math.random() * 10 - 5).toFixed(2);
+                 const isPositive = parseFloat(change) >= 0;
+
+                 result = { 
+                   symbol: targetSymbol.toUpperCase(), 
+                   price: `${price} USD`, 
+                   change: `${isPositive ? '+' : ''}${change}%`, 
+                   status: 'Market Open',
+                   timestamp: new Date().toISOString()
+                 };
+              } else {
+                 result = { status: `API Request to ${args.service} initiated successfully.` };
+              }
+            }
+          } catch (e) {
+            result = { error: "Internal API Gateway Error." };
+          }
         }
 
         this.sessionPromise?.then(session => {
@@ -314,7 +378,9 @@ export class LiveClient {
   }
 
   private handleError(e: ErrorEvent) {
-    this.onStateChange({ error: "Connection error occurred." });
+     const errorMsg = (e as any).message || (e as any).error?.message || "Connection error occurred.";
+    this.onStateChange({ error: errorMsg });
+    console.error("Gemini Live Error:", e);
   }
 
   async disconnect() {
