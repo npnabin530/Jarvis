@@ -1,0 +1,8 @@
+{
+  "name": "JARVIS - Gemini Live Assistant",
+  "description": "A real-time voice-based AI assistant powered by Google Gemini, featuring a futuristic interface and hands-free interaction.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
