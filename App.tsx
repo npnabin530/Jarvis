@@ -164,7 +164,7 @@ const App: React.FC = () => {
 
         <footer className="relative z-10 p-4 border-t border-cyan-900/30 text-center">
             <p className="text-[10px] text-cyan-900 font-mono">
-                STARK INDUSTRIES // PROTOTYPE MARK VII // © 2025
+                STARK INDUSTRIES // PROTOTYPE MARK VII // DEVELOPED BY NABIN // © 2025
             </p>
         </footer>
     </div>
