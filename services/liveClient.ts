@@ -139,6 +139,8 @@ export class LiveClient {
   private audioSources: Set<AudioBufferSourceNode> = new Set();
   private nextStartTime: number = 0;
   private stream: MediaStream | null = null;
+  private keepAliveOscillator: OscillatorNode | null = null;
+  private wakeLock: any = null;
   
   public onStateChange: (state: Partial<{ isConnected: boolean; isSpeaking: boolean; isAiSpeaking: boolean; volume: number; error: string | null }>) => void = () => {};
   public onTranscript: (item: TranscriptionItem) => void = () => {};
@@ -160,6 +162,9 @@ export class LiveClient {
       this.outputNode.connect(this.analyser);
       this.analyser.connect(this.outputAudioContext.destination);
 
+      // START BACKGROUND PROTOCOLS
+      this.enableBackgroundPersistence();
+
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.onStateChange({ isConnected: true, error: null });
 
@@ -170,8 +175,6 @@ export class LiveClient {
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Fenrir' } } },
           systemInstruction: SYSTEM_INSTRUCTION,
           tools: [{ functionDeclarations: tools }],
-          inputAudioTranscription: { },
-          outputAudioTranscription: { }
         },
       };
 
@@ -192,9 +195,38 @@ export class LiveClient {
     }
   }
 
+  // Forces the browser to keep the audio thread active even in background
+  private async enableBackgroundPersistence() {
+    // 1. Request Screen Wake Lock
+    if ('wakeLock' in navigator) {
+      try {
+        this.wakeLock = await (navigator as any).wakeLock.request('screen');
+        console.log("SYS // WAKE LOCK ACQUIRED");
+      } catch (e) {
+        console.warn("SYS // WAKE LOCK FAILED", e);
+      }
+    }
+
+    // 2. Audio Keep-Alive (Silent Oscillator)
+    if (this.outputAudioContext) {
+      try {
+        const osc = this.outputAudioContext.createOscillator();
+        const gain = this.outputAudioContext.createGain();
+        gain.gain.value = 0.0001; // Effectively silent
+        osc.connect(gain);
+        gain.connect(this.outputAudioContext.destination);
+        osc.start();
+        this.keepAliveOscillator = osc;
+        console.log("SYS // BACKGROUND AUDIO KEEPALIVE ACTIVE");
+      } catch (e) {
+        console.warn("SYS // AUDIO KEEPALIVE FAILED", e);
+      }
+    }
+  }
+
   private handleOpen() {
     if (!this.inputAudioContext || !this.stream) return;
-    if (this.inputAudioContext.state === 'suspended') this.inputAudioContext.resume();
+    if (this.inputAudioContext.state === 'suspended') this.inputAudioContext.resume().catch(console.error);
 
     this.inputSource = this.inputAudioContext.createMediaStreamSource(this.stream);
     this.processor = this.inputAudioContext.createScriptProcessor(4096, 1, 1);
@@ -284,7 +316,6 @@ export class LiveClient {
                  // Execute Webhook
                  const url = serviceConfig.fields.find((f:any) => f.name === 'endpoint')?.value;
                  if (url) {
-                   // Note: Real fetch might fail due to CORS in browser environment, catching error handles it.
                    fetch(url, { method: 'POST', body: args.payload }).catch(console.error);
                    result = { status: `Webhook payload sent to ${url}` };
                  } else {
@@ -295,22 +326,16 @@ export class LiveClient {
                  result = { status: 'ONLINE', latency: '12ms', host: host || 'localhost' };
               } else if (args.service === 'stock_tracker') {
                  const configSymbol = serviceConfig.fields.find((f:any) => f.name === 'symbol')?.value || 'GOOGL';
-                 
-                 // Use parsed payload symbol if available (for voice override), else use default config
                  let targetSymbol = configSymbol;
                  try {
                     if (args.payload) {
                         const p = JSON.parse(args.payload);
-                        // Only override if symbol is present and is a valid string
                         if (p.symbol && typeof p.symbol === 'string' && p.symbol.trim() !== '') {
                             targetSymbol = p.symbol;
                         }
                     }
-                 } catch(e) {
-                     console.warn("Failed to parse stock payload, using default.", e);
-                 }
+                 } catch(e) { console.warn("Failed to parse stock payload", e); }
 
-                 // Simulate realistic-looking data
                  const price = (100 + Math.random() * 900).toFixed(2);
                  const change = (Math.random() * 10 - 5).toFixed(2);
                  const isPositive = parseFloat(change) >= 0;
@@ -408,6 +433,20 @@ export class LiveClient {
     this.stream?.getTracks().forEach(t => t.stop());
     this.inputAudioContext?.close();
     this.outputAudioContext?.close();
+    
+    // Stop Keep Alive
+    try {
+        this.keepAliveOscillator?.stop();
+        this.keepAliveOscillator?.disconnect();
+        this.keepAliveOscillator = null;
+    } catch(e) {}
+
+    // Release Wake Lock
+    if (this.wakeLock) {
+        this.wakeLock.release().catch(console.error);
+        this.wakeLock = null;
+    }
+
     this.processor = null;
     this.inputSource = null;
     this.stream = null;

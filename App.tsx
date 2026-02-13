@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Power, Activity, Lock, Unlock, HardDrive, Wifi, MessageSquare, Monitor, Cpu, Smartphone, Zap, Shield } from 'lucide-react';
+import { Power, Activity, Lock, Unlock, HardDrive, Wifi, MessageSquare, Monitor, Cpu, Smartphone, Zap, Shield, Radio } from 'lucide-react';
 import { LiveClient } from './services/liveClient';
 import { TranscriptionItem, LiveSessionState } from './types';
 import ArcReactor from './components/ArcReactor';
@@ -108,6 +108,13 @@ const App: React.FC = () => {
                     <span>DIAGNOSTICS</span>
                 </button>
                 
+                {sessionState.isConnected && (
+                    <div className="flex items-center gap-2 text-cyan-400 animate-pulse border border-cyan-500/30 px-2 py-1 rounded bg-cyan-900/20">
+                        <Radio size={14} />
+                        <span className="tracking-widest">ALWAYS ON</span>
+                    </div>
+                )}
+
                 <div className="flex items-center gap-2 text-yellow-500 animate-pulse">
                     <Unlock size={14} />
                     <span className="tracking-widest">AUTHORIZED</span>
